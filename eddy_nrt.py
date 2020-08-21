@@ -22,6 +22,7 @@ anticyclonic_eddy = xr.open_dataset(eddy_data_path + "eddy_trajectory_nrt_3.0exp
 anticyclonic_eddy['eddy_polarity'] =  1
 
 combined_eddy = pd.concat([cyclonic_eddy,anticyclonic_eddy])
+
 combined_eddy['eddy_age'] = ''
 
 combined_eddy['year'] = combined_eddy['time'].dt.year
@@ -34,10 +35,13 @@ for track in tqdm(combined_eddy['track'].unique()):
     combined_eddy['eddy_age'][combined_eddy['track']==track] = (combined_eddy[combined_eddy['track'] == track]['time'].max() - combined_eddy[combined_eddy['track'] == track]['time'].min()).days
 
 combined_eddy = combined_eddy[['time','latitude','longitude','eddy_polarity','eddy_age','amplitude','effective_contour_height','effective_contour_latitude','effective_contour_longitude','effective_contour_shape_error','effective_radius','inner_contour_height','latitude_max','longitude_max','num_contours','observation_flag','observation_number','speed_average','speed_contour_height','speed_contour_latitude','speed_contour_longitude','speed_contour_shape_error','speed_radius','track','uavg_profile','year','month','week','dayofyear']]
-
 combined_eddy.rename(columns={'latitude': 'lat', 'longitude': 'lon'}, inplace=True)
-
 combined_eddy = data.clean_data_df(combined_eddy)
+combined_eddy = data.mapTo180180(combined_eddy)
+
+
+
+
 
 
 def test_eddy_age_calc(combined_eddy):
