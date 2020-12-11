@@ -133,13 +133,14 @@ def shared_AMT_data_processing(df,meta_html, depth_replace_col):
     dataset_meta["cruise_names"] = [cruise_name]
     dataset_meta["dataset_description"] = ', '.join(edmo_cruise_metadata_list)
     """add to vars_metadata"""
+    cleaned_df.drop(['cruise','type','EDMO_code'], axis=1, inplace=True)
+
     vars_meta["var_short_name"] = list(cleaned_df)
     if "Data Flags" in meta_html[0].iloc[0].to_string():
         # vars_meta["var_comment"][vars_meta["var_short_name"].str.contains("flag")] = meta_html[0].to_string(index=False)
                 vars_meta["var_comment"][vars_meta["var_short_name"].str.contains("flag")] = flow_cyto_dataflag_markdown()
     for col in ['time','lat','lon']:
         vars_meta = vars_meta[~vars_meta["var_short_name"].str.contains(col)]
-    cleaned_df.drop(['cruise','type','EDMO_code'], axis=1, inplace=True)
 
     return cleaned_df, dataset_meta, vars_meta
 
@@ -200,19 +201,19 @@ def process_amt_01_Nutrient():
 def process_amt_02_bathemetry():
     meta_html = pd.read_html(data_base_path + "AMT02/Bathymetry_Meteorology_TSG/amt_02_bathemetry_meta.html")
     df = pd.read_csv(data_base_path + "AMT02/Bathymetry_Meteorology_TSG/amt_02_bathemetry.txt",sep='\t',skiprows=15,index_col=False,names=['cruise','station','type','time','lon','lat','local_cdi_ID','EDMO_code','bottle_depth','depth_below_surf','depth_below_surf_flag','velocity_east','velocity_east_flag','velocity_north','velocity_north_flag',	'distance_traveled','distance_traveled_flag',	'heading','heading_flag',	'bathymetric_depth','bathymetric_depth_flag'])
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html,"depth_below_surf")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19960422_AMT02_bathemetry_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
           
 def process_amt_02_meterology():
     meta_html = pd.read_html(data_base_path + "AMT02/Bathymetry_Meteorology_TSG/amt_02_meteorology_meta.html")
     df = pd.read_csv(data_base_path + "AMT02/Bathymetry_Meteorology_TSG/amt_02_meteorology.txt",sep='\t',skiprows=17,index_col=False,names=['cruise','station','type','time','lon','lat','local_cdi_ID','EDMO_code','bottle_depth','depth_below_surf','depth_below_surf_flag','air_pressure','air_pressure_flag','air_temperature','air_temperature_flag','solar_radiation','solar_radiation_flag','SurfVPAR','SurfVPAR_flag','relative_wind_dir','relative_wind_dir_flag','relative_wind_speed','relative_wind_speed_flag','wind_direction_from','wind_direction_from_flag','wind_speed','wind_speed_flag'])
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html,"depth_below_surf")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19960422_AMT02_meterology_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 def process_amt_02_tsg():
     meta_html = pd.read_html(data_base_path + "AMT02/Bathymetry_Meteorology_TSG/amt_02_tsg_meta.html")
     df = pd.read_csv(data_base_path + "AMT02/Bathymetry_Meteorology_TSG/amt_02_tsg.txt",sep='\t',skiprows=13,index_col=False,names=['cruise','station','type','time','lon','lat','local_cdi_ID','EDMO_code','bottle_depth','depth_below_surf','depth_below_surf_flag','chl_a','chl_a_flag','fluorescence','fluorescence_flag','salinity','salinity_flag','temperature','temperature_flag'])
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html,"depth_below_surf")
     cleaned_df["depth"] = 6
     cleaned_df = cleaned_df[['time','lat','lon','depth','station','chl_a','chl_a_flag','fluorescence','fluorescence_flag','salinity','salinity_flag','temperature','temperature_flag']]
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19960422_AMT02_TSG_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
@@ -222,20 +223,20 @@ def process_amt_02_CTD():
     txt_files = glob.glob(data_base_path + 'AMT02/CTD/CTD/*.txt')
     new = [pd.read_csv(f,sep='\t',skiprows=13,index_col=False,names=['cruise','station','type','time','lon','lat','local_cdi_ID','EDMO_code','bottle_depth','sensor_pressure','sensor_pressure_flag','potential_temperature','potential_temperature_flag','practical_salinity','practical_salinity_flag','sigma_theta','sigma_theta_flag','uncalibrated_CTD_temperature','uncalibrated_CTD_temperature_flag']) for f in txt_files]
     df_concat = pd.concat(new).fillna(method='ffill')
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html,"depth_below_surf")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19960422_AMT02_CTD_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 
 def process_amt_02_extracted_pigments():
     meta_html = pd.read_html(data_base_path + "AMT02/Extracted_Pigments/Extracted_Pigments.html")
     df = pd.read_csv(data_base_path + "AMT02/Extracted_Pigments/Extracted_Pigments.txt",sep='\t',skiprows=60,index_col=False,names=['cruise', 'station', 'type', 'time', 'lon', 'lat', 'local_cdi_ID', 'EDMO_code', 'bottle_depth', 'depth_below_surface', 'depth_below_surface_flag', 'alloxanthin', 'alloxanthin_flag', 'alloxanthin_SD', 'alloxanthin_SD_flag', 'beta_beta_carotine', 'beta_beta_carotine_flag', 'beta_beta_carotine_SD', 'beta_beta_carotine_SD_flag', '19_butanoyloxyfucoxanthin', '19_butanoyloxyfucoxanthin_flag', '19_butanoyloxyfucoxanthin_SD', '19_butanoyloxyfucoxanthin_SD_flag', 'chlorophyll_b', 'chlorophyll_b_flag',  'chlorophyll_b_SD', 'chlorophyll_b_SD_flag', 'chlorophyll_c', 'chlorophyll_c_flag', 'chlorophyll_c_SD', 'chlorophyll_c_SD_flag', 'chlorophyllide_a', 'chlorophyllide_a_flag', 'chlorophyllide_a_SD', 'chlorophyllide_a_SD_flag', 'chlorophyllide_b', 'chlorophyllide_b_flag', 'chlorophyllide_b_SD', 'chlorophyllide_b_SD_flag', 'chlorophyll_a_allomer', 'chlorophyll_a_allomer_flag', 'chlorophyll_a_allomer_SD', 'chlorophyll_a_allomer_SD_flag', 'chlorophyll_a_epimer', 'chlorophyll_a_epimer_flag', 'chlorophyll_a_epimer_SD', 'chlorophyll_a_epimer_SD_flag', 'chlorophyll_a_SD_fluorometer', 'chlorophyll_a_SD_fluorometer_flag', 'chlorophyll_a_fluorometer', 'chlorophyll_a_fluorometer_flag', 'chlorophyll_a', 'chlorophyll_a_flag', 'diadinoxanthin', 'diadinoxanthin_flag', 'diadinoxanthin_SD', 'diadinoxanthin_SD_flag', 'diatoxanthin', 'diatoxanthin_flag', 'diatoxanthin_SD', 'diatoxanthin_SD_flag', 'dinoxanthin', 'dinoxanthin_flag', 'dinoxanthin_SD', 'dinoxanthin_SD_flag', 'divinyl_chlorophyll_a', 'divinyl_chlorophyll_a_flag', 'divinyl_chlorophyll_a_SD', 'divinyl_chlorophyll_a_SD_flag', 'fucoxanthin', 'fucoxanthin_flag', 'fucoxanthin_SD', 'fucoxanthin_SD_flag', '19_hexanoyloxyfucoxanthin', '19_hexanoyloxyfucoxanthin_flag', '19_hexanoyloxyfucoxanthin_SD', '19_hexanoyloxyfucoxanthin_SD_flag', 'monovinyl_chlorophyll_a', 'monovinyl_chlorophyll_a_flag', 'monovinyl_chlorophyll_a_SD', 'monovinyl_chlorophyll_a_SD_flag', 'phaeophorbide_a', 'phaeophorbide_a_flag', 'phaeophorbide_a_SD', 'phaeophorbide_a_SD_flag', 'peridinin', 'peridinin_flag', 'peridinin_SD', 'peridinin_SD_flag', 'phaeopigments_fluorometer', 'phaeopigments_fluorometer_flag', 'phaeopigments_SD_fluorometer', 'phaeopigments_SD_fluorometer_flag', 'prasinoxanthin', 'prasinoxanthin_flag', 'prasinoxanthin_SD', 'prasinoxanthin_SD_flag', 'phaeophytin_a', 'phaeophytin_a_flag', 'phaeophytin_a_SD', 'phaeophytin_a_SD_flag', 'phaeophytin_b', 'phaeophytin_b_flag', 'phaeophytin_b_SD', 'phaeophytin_b_SD_flag', 'chlorophyll_a_SD', 'chlorophyll_a_SD_flag', 'zeaxanthin_lutein', 'zeaxanthin_lutein_flag', 'zeaxanthin_lutein_SD', 'zeaxanthin_lutein_SD_flag'],skipinitialspace=True)
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html,"depth_below_surf")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19960422_AMT02_Extracted_Pigments_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 def process_amt_02_nutrient_underway():
     meta_html = pd.read_html(data_base_path + "AMT02/Nutrient/surface_underway/surface_underway_nutrient.html")
     df = pd.read_csv(data_base_path + "AMT02/Nutrient/surface_underway/surface_underway_nutrient.txt",sep='\t',skiprows=15,index_col=False,names=['cruise','station','type','time','lon','lat','local_cdi_ID','EDMO_code','bottle_depth','depth_below_surf','depth_below_surf_flag','C22_flag','C22_flag_quality','nitrite','nitrite_flag','nitrate_nitrite','nitrate_nitrite_flag','phosphate','phosphate_flag','sample_reference','sample_reference_flag','silicate','silicate_flag'],skipinitialspace=True)
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html,"depth_below_surf")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19960422_AMT02_Nutrient_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 def process_amt_02_nutrient_depth_profiles():
@@ -243,7 +244,7 @@ def process_amt_02_nutrient_depth_profiles():
     txt_files = glob.glob(data_base_path + 'AMT02/Nutrient/depth_profiles/*.txt')
     new = [pd.read_csv(f,sep='\t',skiprows=15,index_col=False,names=    ['cruise','station','type','time','lon','lat','local_cdi_ID','EDMO_code','bottle_depth','depth_below_surf','depth_below_surf_flag','C22_flag','C22_flag_quality','nitrite','nitrite_flag','nitrate_nitrite','nitrate_nitrite_flag','phosphate','phosphate_flag','sample_reference','sample_reference_flag','silicate','silicate_flag']) for f in txt_files]
     df_concat = pd.concat(new).fillna(method='ffill')
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html,"depth_below_surf")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19960422_AMT02_Nutrient_depth_profile_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 
@@ -255,19 +256,19 @@ def process_amt_02_nutrient_depth_profiles():
 def process_amt_03_bathemetry():
     meta_html = pd.read_html(data_base_path + "AMT03/Bathymetry_Meteorology_TSG/amt03_bathymetry_meta.html")
     df = pd.read_csv(data_base_path + "AMT03/Bathymetry_Meteorology_TSG/amt03_bathymetry.txt",sep='\t',skiprows=15,index_col=False,names=['cruise', 'station', 'type', 'time', 'lon', 'lat', 'local_cdi_ID', 'EDMO_code', 'bottle_depth', 'depth_below_surface', 'depth_below_surface_flag', 'eastward_velocity', 'eastward_velocity_flag', 'northward_velocity', 'northward_velocity_flag', 'distance_traveled', 'distance_traveled_flag', 'heading', 'heading_flag', 'bathymetric_depth', 'bathymetric_depth_flag'])
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html,"depth_below_surface")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19960916_AMT03_bathemetry_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 def process_amt_03_meterology():
     meta_html = pd.read_html(data_base_path + "AMT03/Bathymetry_Meteorology_TSG/amt03_meteorology_meta.html")
     df = pd.read_csv(data_base_path + "AMT03/Bathymetry_Meteorology_TSG/amt03_meteorology.txt",sep='\t',skiprows=17,index_col=False,names=['cruise', 'station', 'type', 'time', 'lon', 'lat', 'local_cdi_ID', 'EDMO_code', 'bottle_depth', 'depth_below_surface', 'depth_below_surface_flag', 'air_pressure', 'air_pressure_flag', 'air_temperature', 'air_temperature_flag', 'solar_radiation', 'solar_radiation_flag', 'surface_PAR', 'surface_PAR_flag', 'relative_wind_direction', 'relative_wind_direction_flag', 'relative_wind_speed', 'relative_wind_speed_flag', 'wind_direction_north', 'wind_direction_north_flag', 'wind_speed', 'wind_speed_flag'])
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html,"depth_below_surface")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19960916_AMT03_meterology_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 def process_amt_03_tsg():
     meta_html = pd.read_html(data_base_path + "AMT03/Bathymetry_Meteorology_TSG/amt03_TSG_meta.html")
     df = pd.read_csv(data_base_path + "AMT03/Bathymetry_Meteorology_TSG/amt03_TSG.txt",sep='\t',skiprows=13,index_col=False,names=['cruise', 'station', 'type', 'time', 'lon', 'lat', 'local_cdi_ID', 'EDMO_code', 'bottle_depth', 'depth_below_surface', 'depth_below_surface_flag', 'chl_a', 'chl_a_flag', 'fluorescence', 'fluorescence_flag', 'salinity', 'salinity_flag', 'temperature', 'temperature_flag'])
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html,"depth_below_surface")
     cleaned_df["depth"] = 6
     cleaned_df = cleaned_df[['time','lat','lon','depth','station','chl_a','chl_a_flag','fluorescence','fluorescence_flag','salinity','salinity_flag','temperature','temperature_flag']]
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19960916_AMT03_TSG_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
@@ -278,13 +279,13 @@ def process_amt_03_CTD():
     new = [pd.read_csv(f,sep='\t',skiprows=15,index_col=False,names=['cruise', 'station', 'type', 'time', 'lon', 'lat', 'local_cdi_ID', 'EDMO_code', 'bottle_depth', 'sensor_pressure', 'sensor_pressure_flag', 'chl_a', 'chl_a_flag', 'fluorometer_voltage', 'fluorometer_voltage_flag', 'potential_temperature', 'potential_temperature_flag', 'salinity', 'salinity_flag', 'sigma_theta', 'sigma_theta_flag', 'temperature', 'temperature_flag']) for f in txt_files]
     df_concat = pd.concat(new).fillna(method='ffill')
     df_concat = df_concat[~df_concat["cruise"].isnull()]
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html,"depth_below_surface")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19960916_AMT03_CTD_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 def process_amt_03_extracted_chlorophyll():
     meta_html = pd.read_html(data_base_path + "AMT03/Extracted_Chlorophyll/Extracted_Chlorophyll.html")
     df = pd.read_csv(data_base_path + "AMT03/Extracted_Chlorophyll/Extracted_Chlorophyll.txt",sep='\t',skiprows=10,index_col=False,names=['cruise', 'station', 'type', 'time', 'lon', 'lat', 'local_cdi_ID', 'EDMO_code', 'bottle_depth', 'depth_below_surface', 'depth_below_surface_flag', 'chl_a', 'chl_a_flag'],skipinitialspace=True)
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html,"depth_below_surface")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19960916_AMT03_Extracted_Chlorophyll_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 def process_amt_03_nutrient():
@@ -292,7 +293,7 @@ def process_amt_03_nutrient():
     txt_files = glob.glob(data_base_path + 'AMT03/Nutrient/*.txt')
     new = [pd.read_csv(f,sep='\t',skiprows=15,index_col=False,names=['cruise','station','type','time','lon','lat','local_cdi_ID','EDMO_code','bottle_depth','depth_below_surf','depth_below_surf_flag','C22_flag','C22_flag_quality','nitrite','nitrite_flag','nitrate_nitrite','nitrate_nitrite_flag','phosphate','phosphate_flag','sample_reference','sample_reference_flag','silicate','silicate_flag']) for f in txt_files]
     df_concat = pd.concat(new).fillna(method='ffill')
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html,"depth_below_surface")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19960916_AMT03_Nutrient_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 #################
@@ -302,19 +303,19 @@ def process_amt_03_nutrient():
 def process_amt_04_bathemetry():
     meta_html = pd.read_html(data_base_path + "AMT04/Bathymetry_Meteorology_TSG/amt04_bathymetry_metadata.html")
     df = pd.read_csv(data_base_path + "AMT04/Bathymetry_Meteorology_TSG/amt04_bathymetry.txt",sep='\t',skiprows=15,index_col=False,names=['cruise', 'station', 'type', 'time', 'lon', 'lat', 'local_cdi_ID', 'EDMO_code','bottle_depth', 'depth_below_surface', 'depth_below_surface_flag','eastward_velocity', 'eastward_velocity_flag', 'northward_velocity','northward_velocity_flag', 'distance_traveled', 'distance_traveled_flag','heading', 'heading_flag', 'bathymetric_depth', 'bathymetric_depth_flag'])
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html,"depth_below_surface")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19970421_AMT04_bathemetry_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 def process_amt_04_meterology():
     meta_html = pd.read_html(data_base_path + "AMT04/Bathymetry_Meteorology_TSG/amt04_meteorology_metadata.html")
     df = pd.read_csv(data_base_path + "AMT04/Bathymetry_Meteorology_TSG/amt04_meteorology.txt",sep='\t',skiprows=17,index_col=False,names=['cruise', 'station', 'type', 'time', 'lon', 'lat', 'local_cdi_ID', 'EDMO_code','bottle_depth', 'depth_below_surface', 'depth_below_surface_flag','air_pressure', 'air_pressure_flag', 'air_temperature', 'air_temperature_flag','solar_radiation', 'solar_radiation_flag', 'surface_PAR', 'surface_PAR_flag','relative_wind_direction', 'relative_wind_direction_flag','relative_wind_speed', 'relative_wind_speed_flag', 'wind_direction_north','wind_direction_north_flag', 'wind_speed', 'wind_speed_flag'])
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html,"depth_below_surface")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19970421_AMT04_meterology_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 def process_amt_04_tsg():
     meta_html = pd.read_html(data_base_path + "AMT04/Bathymetry_Meteorology_TSG/amt04_TSG_metadata.html")
     df = pd.read_csv(data_base_path + "AMT04/Bathymetry_Meteorology_TSG/amt04_TSG.txt",sep='\t',skiprows=13,index_col=False,names=['cruise', 'station', 'type', 'time', 'lon', 'lat', 'local_cdi_ID', 'EDMO_code','bottle_depth', 'depth_below_surface', 'depth_below_surface_flag', 'chl_a','chl_a_flag', 'fluorescence', 'fluorescence_flag', 'salinity', 'salinity_flag','temperature', 'temperature_flag'])
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df,meta_html,"depth_below_surface")
     cleaned_df["depth"] = 6      
     cleaned_df = cleaned_df[['time','lat','lon','depth','station','chl_a','chl_a_flag','fluorescence','fluorescence_flag','salinity','salinity_flag','temperature','temperature_flag']]
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19970421_AMT04_TSG_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
@@ -325,7 +326,7 @@ def process_amt_04_CTD():
     new = [pd.read_csv(f,sep='\t',skiprows=13,index_col=False,names=['cruise', 'station', 'type', 'time', 'lon', 'lat', 'local_cdi_ID', 'EDMO_code', 'bottle_depth', 'sensor_pressure', 'sensor_pressure_flag', 'chl_a', 'chl_a_flag', 'fluorometer_voltage', 'fluorometer_voltage_flag', 'potential_temperature', 'potential_temperature_flag', 'salinity', 'salinity_flag', 'sigma_theta', 'sigma_theta_flag', 'temperature', 'temperature_flag']) for f in txt_files]
     df_concat = pd.concat(new).fillna(method='ffill')
     df_concat = df_concat[~df_concat["cruise"].isnull()]
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html,"depth_below_surface")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19970421_AMT04_CTD_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 def process_amt_04_extracted_chlorophyll_profiles():
@@ -334,7 +335,7 @@ def process_amt_04_extracted_chlorophyll_profiles():
     new = [pd.read_csv(f,sep='\t',skiprows=12,index_col=False,names=['cruise', 'station', 'type', 'time', 'lon', 'lat', 'local_cdi_ID', 'EDMO_code', 'bottle_depth', 'depth_below_surface', 'depth_below_surface_flag', 'C22_flag', 'C22_flag_quality', 'chl_a', 'chl_a_flag', 'sample_reference','sample_reference_flag']) for f in txt_files]
     df_concat = pd.concat(new).fillna(method='ffill')
     df_concat = df_concat[~df_concat["cruise"].isnull()]
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html,"depth_below_surface")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19970421_AMT04_Extracted_Chlorophyll_Profiles_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 def process_amt_04_nutrient():
@@ -342,7 +343,7 @@ def process_amt_04_nutrient():
     txt_files = glob.glob(data_base_path + 'AMT04/Nutrient/*.txt')
     new = [pd.read_csv(f,sep='\t',skiprows=15,index_col=False,names=['cruise','station','type','time','lon','lat','local_cdi_ID','EDMO_code','bottle_depth','depth_below_surf','depth_below_surf_flag','C22_flag','C22_flag_quality','nitrite','nitrite_flag','nitrate_nitrite','nitrate_nitrite_flag','phosphate','phosphate_flag','sample_reference','sample_reference_flag','silicate','silicate_flag']) for f in txt_files]
     df_concat = pd.concat(new).fillna(method='ffill')
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html,"depth_below_surface")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19970421_AMT04_Nutrient_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 def process_amt_04_pigments():
@@ -350,7 +351,7 @@ def process_amt_04_pigments():
     txt_files = glob.glob(data_base_path + 'AMT04/Pigments/*.txt')
     new = [pd.read_csv(f,sep='\t',skiprows=33,index_col=False,names=['cruise','station','type','time','lon','lat','local_cdi_ID','EDMO_code','bottle_depth','depth_below_surface','depth_below_surface_flag','alloxanthin','alloxanthin_flag','beta_beta_carotene','beta_beta_carotene_flag','beta_epislon_carotene','beta_epsilon_carotene_flag','C22_flag','C22_flag_quality','butanoyloxyfucoxanthin_19','butanoyloxyfucoxanthin_19_flag','chlorophyll_c1_c2','chlorophyll_c1_c2_flag','chlorophyll_b','chlorophyll_b_flag','chlorophyll_c3','chlorophyll_c3_flag','chlorophyll_a','chlorophyll_a_flag','diadinoxanthin','diadinoxanthin_flag','diatoxanthin','diatoxanthin_flag','divinyl_chlorophyll_a','divinyl_chlorophyll_a_flag','fucoxanthin','fucoxanthin_flag','hexanoyloxyfucoxanthin_19','hexanoyloxyfucoxanthin_19_flag','lutein','lutein_flag','chlorophyll_a_divinyl_chlorophyll_a','chlorophyll_a_divinyl_chlorophyll_a_flag','monovinyl_chlorophyll_a','monovinyl_chlorophyll_a_flag','phaeophorbide','phaeophorbide_flag','peridinin','peridinin_flag','prasinoxanthin_fucoxanthin','prasinoxanthin_fucoxanthin_flag','phaeophytin','phaeophytin_flag','sample_reference','sample_reference_flag','violaxanthin','violaxanthin_flag','zeaxanthin','zeaxanthin_flag']) for f in txt_files]
     df_concat = pd.concat(new).fillna(method='ffill')
-    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html)
+    cleaned_df, dataset_meta, vars_meta = shared_AMT_data_processing(df_concat,meta_html,"depth_below_surface")
     combine_df_to_excel(vs.staging + 'combined/' + 'tblJR19970421_AMT04_Pigments_qa.xlsx',cleaned_df,dataset_meta, vars_meta)
 
 
@@ -450,6 +451,28 @@ def process_amt_29_flow_cyto():
 # process_amt_02_meterology()
 # process_amt_02_tsg()
 # process_amt_02_CTD()
+# process_amt_02_extracted_pigments()
+# process_amt_02_nutrient_underway()
+# process_amt_02_nutrient_depth_profiles()
+
+# #AMT03
+# process_amt_03_bathemetry()
+# process_amt_03_meterology()
+# process_amt_03_tsg()
+# process_amt_03_CTD()
+# process_amt_03_extracted_chlorophyll()
+# process_amt_03_nutrient()
+
+# #AMT04
+
+# process_amt_04_bathemetry()
+# process_amt_04_meterology()
+# process_amt_04_tsg()
+# process_amt_04_CTD()
+# process_amt_04_extracted_chlorophyll_profiles()
+# process_amt_04_nutrient()
+# process_amt_04_pigments()
+
 
 # process_amt_18_flow_cyto()
 # process_amt_19_flow_cyto()
