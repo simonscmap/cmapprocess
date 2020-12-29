@@ -27,7 +27,13 @@
  #loop through floats
  #for col in float, extract unique cols
  
-
+#dev note dec 28th:
+# check data type columns in table
+#check that any cols are string stripped
+# check that df cols match table cols
+# for file in synthetic list, 
+# insert into tblArgoBGC_REP and tblARGO_Metadata
+# function to insert metadata
 
 import xarray as xr
 import pandas as pd
@@ -62,6 +68,7 @@ bgc_metadata_columns = [
 'PI_NAME',
 'PLATFORM_NUMBER',
 'PLATFORM_TYPE',
+'POSITIONING_SYSTEM',
 'PROJECT_NAME',
 'REFERENCE_DATE_TIME',
 'STATION_PARAMETERS',
@@ -160,7 +167,7 @@ bgc_data_columns = [
 'DOXY_QC',
 'DOXY_dPRES',
 'JULD',
-'JULD_LOCATION',
+# 'JULD_LOCATION',
 'JULD_QC',
 'LATITUDE',
 'LONGITUDE',
@@ -176,7 +183,6 @@ bgc_data_columns = [
 'PH_IN_SITU_TOTAL_ADJUSTED_QC',
 'PH_IN_SITU_TOTAL_QC',
 'PH_IN_SITU_TOTAL_dPRES',
-'POSITIONING_SYSTEM',
 'POSITION_QC',
 'PRES',
 'PRES_ADJUSTED',
@@ -340,6 +346,8 @@ def format_bgc_metadata(df,bgc_metadata_columns):
 
 
 def format_split_bgc(syn_float, bgc_template_df):
+    """extract float_id from name"""
+    float_id = syn_float.split('/')[1]
     """load netcdf into dataframe"""
     float_profile = xr.open_dataset(argo_base_dir + syn_float +  syn_float.split('/')[1] +"_Sprof.nc").to_dataframe().reset_index()
     """decode binary strings"""
@@ -353,28 +361,35 @@ def format_split_bgc(syn_float, bgc_template_df):
     """adds depth as column"""
     bgc_df["depth"] =  bgc_df['PRES_ADJUSTED']
     """adds float ID column from float_path_name"""
-    bgc_df["float_id"] = syn_float.split('/')[1]
+    bgc_df["float_id"] = float_id
     """reorders bgc_df with ST index leading followed by float_id and cycle"""
     reorder_df = reorder_bgc_data(bgc_df)
-    return reorder_df
+    """adds climatology day,month,week,doy columns"""
+    clim_df = data.add_day_week_month_year_clim(reorder_df)
+
+    return float_id, clim_df, bgc_metadata_dict
+
+def cleaned_bgc_to_vault(float_id,cleaned_bgc_df,bgc_metadata_dict):
+    vault_data_dir = vs.float_dir + 'tblArgoBGC_REP/rep/'
+    vault_metadata_dir = vs.float_dir + 'tblArgoBGC_REP/metadata/'
+    cleaned_bgc_df.to_csv(vault_data_dir + float_id + ".csv",index=False,sep=',')
+    pd.DataFrame({float_id:bgc_metadata_dict}).to_json(vault_metadata_dir + float_id + ".json")
+
 
 # format_bgc_metadata(df,bgc_metadata_columns)
 bgc_template_df = pd.DataFrame(columns=['BBP470','BBP470_ADJUSTED','BBP470_ADJUSTED_ERROR','BBP470_ADJUSTED_QC','BBP470_QC','BBP470_dPRES','BBP532','BBP532_ADJUSTED','BBP532_ADJUSTED_ERROR','BBP532_ADJUSTED_QC','BBP532_QC','BBP532_dPRES','BBP700','BBP700_2','BBP700_2_ADJUSTED','BBP700_2_ADJUSTED_ERROR','BBP700_2_ADJUSTED_QC','BBP700_2_QC','BBP700_2_dPRES','BBP700_ADJUSTED','BBP700_ADJUSTED_ERROR','BBP700_ADJUSTED_QC','BBP700_QC','BBP700_dPRES','CDOM','CDOM_ADJUSTED','CDOM_ADJUSTED_ERROR','CDOM_ADJUSTED_QC','CDOM_QC','CDOM_dPRES','CHLA','CHLA_ADJUSTED','CHLA_ADJUSTED_ERROR','CHLA_ADJUSTED_QC','CHLA_QC','CHLA_dPRES','CONFIG_MISSION_NUMBER','CP660','CP660_ADJUSTED','CP660_ADJUSTED_ERROR','CP660_ADJUSTED_QC','CP660_QC','CP660_dPRES','CYCLE_NUMBER','DATA_CENTRE','DATA_TYPE','DATE_CREATION','DATE_UPDATE','DIRECTION','DOWNWELLING_PAR','DOWNWELLING_PAR_ADJUSTED','DOWNWELLING_PAR_ADJUSTED_ERROR','DOWNWELLING_PAR_ADJUSTED_QC','DOWNWELLING_PAR_QC','DOWNWELLING_PAR_dPRES','DOWN_IRRADIANCE380','DOWN_IRRADIANCE380_ADJUSTED','DOWN_IRRADIANCE380_ADJUSTED_ERROR','DOWN_IRRADIANCE380_ADJUSTED_QC','DOWN_IRRADIANCE380_QC','DOWN_IRRADIANCE380_dPRES','DOWN_IRRADIANCE412','DOWN_IRRADIANCE412_ADJUSTED','DOWN_IRRADIANCE412_ADJUSTED_ERROR','DOWN_IRRADIANCE412_ADJUSTED_QC','DOWN_IRRADIANCE412_QC','DOWN_IRRADIANCE412_dPRES','DOWN_IRRADIANCE443','DOWN_IRRADIANCE443_ADJUSTED','DOWN_IRRADIANCE443_ADJUSTED_ERROR','DOWN_IRRADIANCE443_ADJUSTED_QC','DOWN_IRRADIANCE443_QC','DOWN_IRRADIANCE443_dPRES','DOWN_IRRADIANCE490','DOWN_IRRADIANCE490_ADJUSTED','DOWN_IRRADIANCE490_ADJUSTED_ERROR','DOWN_IRRADIANCE490_ADJUSTED_QC','DOWN_IRRADIANCE490_QC','DOWN_IRRADIANCE490_dPRES','DOWN_IRRADIANCE555','DOWN_IRRADIANCE555_ADJUSTED','DOWN_IRRADIANCE555_ADJUSTED_ERROR','DOWN_IRRADIANCE555_ADJUSTED_QC','DOWN_IRRADIANCE555_QC','DOWN_IRRADIANCE555_dPRES','DOXY','DOXY2','DOXY2_ADJUSTED','DOXY2_ADJUSTED_ERROR','DOXY2_ADJUSTED_QC','DOXY2_QC','DOXY2_dPRES','DOXY_ADJUSTED','DOXY_ADJUSTED_ERROR','DOXY_ADJUSTED_QC','DOXY_QC','DOXY_dPRES','FIRMWARE_VERSION','FLOAT_SERIAL_NO','FORMAT_VERSION','HANDBOOK_VERSION','JULD','JULD_LOCATION','JULD_QC','LATITUDE','LONGITUDE','NITRATE','NITRATE_ADJUSTED','NITRATE_ADJUSTED_ERROR','NITRATE_ADJUSTED_QC','NITRATE_QC','NITRATE_dPRES','PARAMETER','PARAMETER_DATA_MODE','PH_IN_SITU_TOTAL','PH_IN_SITU_TOTAL_ADJUSTED','PH_IN_SITU_TOTAL_ADJUSTED_ERROR','PH_IN_SITU_TOTAL_ADJUSTED_QC','PH_IN_SITU_TOTAL_QC','PH_IN_SITU_TOTAL_dPRES','PI_NAME','PLATFORM_NUMBER','PLATFORM_TYPE','POSITIONING_SYSTEM','POSITION_QC','PRES','PRES_ADJUSTED','PRES_ADJUSTED_ERROR','PRES_ADJUSTED_QC','PRES_QC','PROFILE_BBP470_QC','PROFILE_BBP532_QC','PROFILE_BBP700_2_QC','PROFILE_BBP700_QC','PROFILE_CDOM_QC','PROFILE_CHLA_QC','PROFILE_CP660_QC','PROFILE_DOWNWELLING_PAR_QC','PROFILE_DOWN_IRRADIANCE380_QC','PROFILE_DOWN_IRRADIANCE412_QC','PROFILE_DOWN_IRRADIANCE443_QC','PROFILE_DOWN_IRRADIANCE490_QC','PROFILE_DOWN_IRRADIANCE555_QC','PROFILE_DOXY2_QC','PROFILE_DOXY_QC','PROFILE_NITRATE_QC','PROFILE_PH_IN_SITU_TOTAL_QC','PROFILE_PRES_QC','PROFILE_PSAL_QC','PROFILE_TEMP_QC','PROFILE_TURBIDITY_QC','PROFILE_UP_RADIANCE412_QC','PROFILE_UP_RADIANCE443_QC','PROFILE_UP_RADIANCE490_QC','PROFILE_UP_RADIANCE555_QC','PROJECT_NAME','PSAL','PSAL_ADJUSTED','PSAL_ADJUSTED_ERROR','PSAL_ADJUSTED_QC','PSAL_QC','PSAL_dPRES','REFERENCE_DATE_TIME','SCIENTIFIC_CALIB_COEFFICIENT','SCIENTIFIC_CALIB_COMMENT','SCIENTIFIC_CALIB_DATE','SCIENTIFIC_CALIB_EQUATION','STATION_PARAMETERS','TEMP','TEMP_ADJUSTED','TEMP_ADJUSTED_ERROR','TEMP_ADJUSTED_QC','TEMP_QC','TEMP_dPRES','TURBIDITY','TURBIDITY_ADJUSTED','TURBIDITY_ADJUSTED_ERROR','TURBIDITY_ADJUSTED_QC','TURBIDITY_QC','TURBIDITY_dPRES','UP_RADIANCE412','UP_RADIANCE412_ADJUSTED','UP_RADIANCE412_ADJUSTED_ERROR','UP_RADIANCE412_ADJUSTED_QC','UP_RADIANCE412_QC','UP_RADIANCE412_dPRES','UP_RADIANCE443','UP_RADIANCE443_ADJUSTED','UP_RADIANCE443_ADJUSTED_ERROR','UP_RADIANCE443_ADJUSTED_QC','UP_RADIANCE443_QC','UP_RADIANCE443_dPRES','UP_RADIANCE490','UP_RADIANCE490_ADJUSTED','UP_RADIANCE490_ADJUSTED_ERROR','UP_RADIANCE490_ADJUSTED_QC','UP_RADIANCE490_QC','UP_RADIANCE490_dPRES','UP_RADIANCE555','UP_RADIANCE555_ADJUSTED','UP_RADIANCE555_ADJUSTED_ERROR','UP_RADIANCE555_ADJUSTED_QC','UP_RADIANCE555_QC','UP_RADIANCE555_dPRES','WMO_INST_TYPE'])
 syn_float = get_argo_synthetic()[0]
-bgc_df = format_split_bgc(syn_float, bgc_template_df)
-
-# for val in list(float_profile):
-#     print(float_profile[val].value_counts())
+float_id,cleaned_bgc_df,bgc_metadata_dict = format_split_bgc(syn_float, bgc_template_df)
+cleaned_bgc_to_vault(float_id,cleaned_bgc_df,bgc_metadata_dict)
 
 
 
+for col_val in list(cleaned_bgc_df):
+    cleaned_bgc_df[cleaned_bgc_df].dtypes
 
-# bgc_list = []
-# core_list = []
-# for argofloat in float_list:
-#     float_profile = xr.open_dataset(argo_base_dir + daac + "/" + argofloat +"/" +  argofloat +"_prof.nc").to_dataframe().reset_index()
-    
-#     break
+
+
+
 
 def clean_argo_df(df,float_ID):
     """This function cleans and renames variables in the raw argo dataframe
