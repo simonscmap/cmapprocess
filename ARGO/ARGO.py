@@ -105,7 +105,7 @@ import numpy as np
 import json
 import gc
 import random
-
+import vaex
 
 
 # argo_base_dir = vs.collected_data + "ARGO/"
@@ -548,25 +548,28 @@ def format_split_bgc(df,float_id, bgc_template_df):
 
     return float_id, df_concat, bgc_metadata_df
 
-def cleaned_bgc_to_vault(float_id,cleaned_bgc_df,bgc_metadata_df):
-    # vault_data_dir = vs.float_dir + 'tblArgoBGC_REP/rep/'
+
+def cleaned_bgc_to_vault_data(float_id,cleaned_bgc_df):
     vault_data_dir = argo_base_dir + 'vault/rep/'
-    # vault_metadata_dir = vs.float_dir + 'tblArgoBGC_REP/metadata/'
-    vault_metadata_dir = argo_base_dir + 'vault/metadata/'
     cleaned_bgc_df.to_csv(vault_data_dir + float_id + ".csv",index=False,sep=',')
+
+
+def cleaned_bgc_to_vault_metadata(float_id,bgc_metadata_df):
+    vault_metadata_dir = argo_base_dir + 'vault/metadata/'
     bgc_metadata_df.to_csv(vault_metadata_dir + float_id + ".csv",index=False)
 
-def insert_data_metadata_DB(cleaned_bgc_df,bgc_metadata_df):
+def insert_data_DB(cleaned_bgc_df):
     data.data_df_to_db(cleaned_bgc_df, 'tblArgoBGC_REP', 'Rainier')
     data.data_df_to_db(cleaned_bgc_df, 'tblArgoBGC_REP', 'Mariana')
 
+def insert_metadata_DB(bgc_metadata_df):
     DB.toSQLpandas(bgc_metadata_df, "tblArgo_Metadata", "Rainier")
     DB.toSQLpandas(bgc_metadata_df, "tblArgo_Metadata", "Mariana")
 
 
 
-filelist = glob.glob(vs.collected_data + "ARGO/BGC/" +"**/*.nc",recursive=True)
-# filelist = glob.glob(argo_base_dir + "BGC/" +"**/*.nc",recursive=True)
+# filelist = glob.glob(vs.collected_data + "ARGO/BGC/" +"**/*.nc",recursive=True)
+filelist = glob.glob(argo_base_dir + "BGC/" +"**/*.nc",recursive=True)
 
 def get_diff_DB_flist(filelist):
     flist_ids = set(pd.Series(filelist).str.split("/",expand=True).iloc[:,-1].str.split("_",expand=True)[0].to_list())
@@ -576,55 +579,133 @@ def get_diff_DB_flist(filelist):
     diff_set = list(vault_list ^ flist_ids)
     return diff_set
 
-# fil = "/home/nrhagen/Documents/CMAP/cmapprocess/ARGO/argo_data_temp/BGC/coriolis/6901524_Sprof.nc"
+def get_diff_DB_flist_table(filelist):
+    flist_ids = set(pd.Series(filelist).str.split("/",expand=True).iloc[:,-1].str.split("_",expand=True)[0].to_list())
+    query = """ SELECT DISTINCT(float_id) from tblArgoBGC_Rep """
+    vault_ids = DB.dbRead(query,"Rainier")
+    vault_list = set(vault_ids["float_id"].astype(str).to_list())
+    diff_set = list(vault_list ^ flist_ids)
+    return diff_set
+
 # fil = "/home/nrhagen/Documents/CMAP/cmapprocess/ARGO/argo_data_temp/BGC/coriolis/6901766_Sprof.nc"
 # # fil = "/home/nrhagen/Documents/CMAP/cmapprocess/ARGO/argo_data_temp/BGC/incois/2902264_Sprof.nc"
 # # fil = "/home/nrhagen/Documents/CMAP/cmapprocess/ARGO/argo_data_temp/BGC/incois/2902156_Sprof.nc"
 # fil = "/home/nrhagen/Documents/CMAP/cmapprocess/ARGO/argo_data_temp/BGC/incois/2902202_Sprof.nc"
+# fil = "/home/nrhagen/Documents/CMAP/cmapprocess/ARGO/argo_data_temp/BGC/coriolis/6901485_Sprof.nc"
 
 
 
 
-
-""" MAIN PROCESSING BLOCK"""
+# """ MAIN PROCESSING BLOCK"""
 missed_file_list = []
-diff_set = get_diff_DB_flist(filelist)
+diff_set = get_diff_DB_flist_table(filelist)
+
+
+# random.shuffle(filelist)
 
 
 
+"""break into dataframes, clean, ingest..."""
 for fil in tqdm(filelist):
     fil_ID = fil.rsplit("/")[-1].split("_")[0]
     if fil_ID in diff_set:
+        print("####")
+        print(fil)
+        print("####")
         try:
-            #1. load xarray and choose which size processing func
             xdf = xr.open_dataset(fil)
             xdf = decode_xarray_bytes(xdf)
-            ds_large = argo_size_decider(xdf,byte_lim = 200000000)
-            if ds_large == True:
-                large_xarray_to_multi_parquet(xdf,fil_ID)
-                df = load_multi_parquet()
-                remove_multi_temp_files()
-                #2a parse xdf with parquet in chunks
-            else:
-                #2b parse xdf in single 
-                df = xarray_to_csv_direct(xdf)
+            for lvl in tqdm(xdf.N_PARAM.values.tolist()):
+                df = xdf.sel(N_PARAM=lvl).to_dataframe()
+                df = df.reset_index()
                 df = process_chunked_df(df,fil_ID)
-            #3 final cleanup col additions and metadata dataframe
-            metadata_df = format_bgc_metadata(df,fil_ID)
-            df = add_cols_to_cleaned_df(df)
-            df = reorder_bgc_data(df)
-            #4 save data to vault
-            cleaned_bgc_to_vault(fil_ID,df,metadata_df)
-            #5 ingest df and metadata into DB 
-            insert_data_metadata_DB(df,metadata_df)
-
+                df = add_cols_to_cleaned_df(df)
+                df = reorder_bgc_data(df)
+                cleaned_bgc_to_vault_data(fil_ID+f'_{lvl}',df)
+                insert_data_DB(df)
         except Exception as e:
             print(fil)
             print(e)
-            missed_file_list.append(fil)
     else:
         print("This float is already in the DB: " + fil_ID)
-pd.Series(mfl).to_csv("missed_file_list.csv",index=False)
+
+
+
+"""for too large memory floats, this block for addl large metadata"""
+
+# for fil in tqdm(filelist):
+#     fil_ID = fil.rsplit("/")[-1].split("_")[0]
+#     if fil_ID in diff_set:
+#         print("####")
+#         print(fil)
+#         print("####")
+#         try:
+#             #1. load xarray and choose which size processing func
+#             xdf = xr.open_dataset(fil)
+#             xdf = decode_xarray_bytes(xdf)
+#             df = xdf.sel(N_PARAM=0).to_dataframe()
+#             df = df.reset_index()
+#             df = process_chunked_df(df,fil_ID)
+#             #2a parse xdf with parquet in chunks
+#             metadata_df = format_bgc_metadata(df,fil_ID)
+#             #5 ingest df and metadata into DB 
+#             insert_data_metadata_DB(df,metadata_df)
+
+#         except Exception as e:
+#             print(fil)
+#             print(e)
+#     else:
+#         print("This float is already in the DB: " + fil_ID)
+
+
+
+
+
+
+
+
+
+
+
+# for fil in tqdm(filelist):
+#     fil_ID = fil.rsplit("/")[-1].split("_")[0]
+#     if fil_ID in diff_set:
+#         try:
+#             #1. load xarray and choose which size processing func
+#             xdf = xr.open_dataset(fil)
+#             xdf = decode_xarray_bytes(xdf)
+#             ds_large = argo_size_decider(xdf,byte_lim = 100000000)
+#             if ds_large == True:
+#                 missed_file_list.append(fil)
+#                 large_xarray_to_multi_parquet(xdf,fil_ID)
+#                 # df = load_multi_parquet()
+#                 vdf = vaex.open('temp/*.parquet')
+#                 df = vdf.to_pandas_df()
+#                 remove_multi_temp_files()
+#                 #2a parse xdf with parquet in chunks
+#             else:
+#                 #2b parse xdf in single 
+#                 df = xarray_to_csv_direct(xdf)
+#                 df = process_chunked_df(df,fil_ID)
+#                 #3 final cleanup col additions and metadata dataframe
+#             metadata_df = format_bgc_metadata(df,fil_ID)
+#             df.loc[:, df.columns != 'time'] = df.loc[:, df.columns != 'time'].apply(pd.to_numeric, errors='ignore',downcast='signed')
+                    
+#             df = add_cols_to_cleaned_df(df)
+
+#             df = reorder_bgc_data(df)
+#             #4 save data to vault
+#             cleaned_bgc_to_vault(fil_ID,df,metadata_df)
+#             #5 ingest df and metadata into DB 
+#             insert_data_metadata_DB(df,metadata_df)
+
+#         except Exception as e:
+#             print(fil)
+#             print(e)
+#             missed_file_list.append(fil)
+#     else:
+#         print("This float is already in the DB: " + fil_ID)
+# pd.Series(mfl).to_csv("missed_file_list.csv",index=False)
 
 
 
