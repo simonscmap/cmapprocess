@@ -54,6 +54,37 @@ uwsample.txt:
 
 7.	Bottle Dissolved Oxygen [umol/l]
 var_n...
+
+
+Bottle:
+
+  STNNBR  CASTNO ROSETTE     LAT     LON  CTDPRS  CTDTMP  CTDSAL  CTDOXY  CTDCHL   THETA   SIGMA  OXYGEN     DIC ALKALIN  PHSPHT NO2+NO3  SILCAT     DOP     DON     DOC     TDP     TDN     LLN     LLP      PC      PN      PP     PSi  CHL A.   PHEO. CHLDA A    CHL+   PERID  19 BUT    FUCO  19 HEX PRASINO    VIOL DIADINO   ALLOX  LUTEIN  ZEAXAN   CHL B   A.CAR   B.CAR DV.CHLA MV.CHLA HPLCchl  H.BACT  P.BACT  S.BACT  E.BACT     ATP     CH4     N2O   QUALT1  QUALT2  QUALT3  QUALT4  QUALT5  QUALT6  QUALT7  QUALT8
+                POSITION  DEG(N)  DEG(W)    DBAR   DEG C  PSS-78 UMOL/KG    UG/L  ITS-90   KG/M3 UMOL/KG UMOL/KG  UEQ/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG NMOL/KG NMOL/KG    UG/L    UG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    #/ML    #/ML    #/ML    #/ML   NG/KG NMOL/KG NMOL/KG                                                                *
+                                                 ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* *******                                                                *
+
+       1       1      24 -16.001 170.007    13.4  29.086  35.207   197.8  0.1875  29.083 22.1942    -9.0    -9.0      -9   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00  -9.000  -9.000   -9.00   -9.00   -9.00  -9.000   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00  -9.000  -9.000  -9.000  -9.000   -9.00   -9.00   -9.00  2222229 9999999  999999  955559  999999  999999  999995  555555
+
+    The files are self-explanatory; one column is written for each
+measured parameter.  Missing data are filled with -9. A five-line
+heading labels each column.  Variables having asterisks in their
+heading have a quality flag associated with them. These quality flags
+are concatenated as a quality word which is listed as the last eight
+variables in each row (either six or seven flags per variable).  The
+values each digit can assume and their meanings follows:
+
+Quality Indicators:
+
+	Flag  Meaning
+	 1    not quality controled
+	 2    good data
+	 3    suspect (i.e.  questionable) data
+	 4    bad data
+	 5    missing data
+	 9    variable not measured during this cast
+
+
+
+
 """
 
 CMORE_BULA_path = vs.collected_data + "insitu/cruise/misc_cruise/KM0704_CMORE_BULA/"
@@ -267,3 +298,172 @@ def process_underway_sample():
         ]
     ]
     return df
+
+
+def process_bottle():
+    bottle_path = CMORE_BULA_path + "bottle/bula1.gof"
+    df = pd.read_csv(
+        bottle_path,
+        skiprows=5,
+        index_col=False,
+        delim_whitespace=True,
+        names=[
+            "station",
+            "cast",
+            "rosette",
+            "lat",
+            "lon",
+            "CTD_pres",
+            "CTD_temp",
+            "CTD_sal",
+            "CTD_doxy",
+            "CTD_chl",
+            "theta",
+            "sigma",
+            "bottle_oxygen",
+            "DIC",
+            "alkalinity",
+            "phosphate",
+            "NO2_NO3",
+            "silcate",
+            "DOP",
+            "DON",
+            "DOC",
+            "TDP",
+            "TDN",
+            "LLN",
+            "LLP",
+            "PC",
+            "PN",
+            "PP",
+            "PSi",
+            "chl_a",
+            "pheo",
+            "chlda",
+            "chl_plus",
+            "PERID",
+            "19_but",
+            "FUCO",
+            "19_Hex",
+            "Prasino",
+            "Viol",
+            "Diadino",
+            "Allox",
+            "Lutein",
+            "Zeaxan",
+            "Chl_b",
+            "alpha_carotene",
+            "beta_carotene",
+            "divinyl_chl",
+            "monovinyl_chl",
+            "HPLC_chla",
+            "hetero_bact",
+            "prochloro_bact",
+            "synecho_bact",
+            "eukaryotes",
+            "ATP",
+            "CH4",
+            "N2O",
+            "qual_1",
+            "qual_2",
+            "qual_3",
+            "qual_4",
+            "qual_5",
+            "qual_6",
+            "qual_7",
+            "qual_8",
+        ],
+    )
+    df[
+        [
+            "CTD_temp_flag",
+            "CTD_sal_flag",
+            "CTD_doxy_flag",
+            "CTD_chl_flag",
+            "theta_flag",
+            "sigma_flag",
+            "bottle_oxygen_flag",
+        ]
+    ] = (
+        df["qual_1"].astype(str).str.extractall("(.)")[0].unstack()
+    )
+    df[
+        [
+            "CTD_temp_flag",
+            "CTD_sal_flag",
+            "CTD_doxy_flag",
+            "CTD_chl_flag",
+            "theta_flag",
+            "sigma_flag",
+            "bottle_oxygen_flag",
+        ]
+    ] = (
+        df["qual_1"].astype(str).str.extractall("(.)")[0].unstack()
+    )
+    df[
+        [
+            "DIC_flag",
+            "alkalinity_flag",
+            "phosphate_flag",
+            "NO2_NO3_flag",
+            "silcate_flag",
+            "DOP_flag",
+            "DON_flag",
+        ]
+    ] = (
+        df["qual_2"].astype(str).str.extractall("(.)")[0].unstack()
+    )
+    df[["DOC_flag", "TDP_flag", "TDN_flag", "LLN_flag", "LLP_flag", "PC_flag"]] = (
+        df["qual_3"].astype(str).str.extractall("(.)")[0].unstack()
+    )
+    df[["PN_flag", "PP_flag", "PSi_flag", "chl_a_flag", "pheo_flag", "chlda_flag"]] = (
+        df["qual_4"].astype(str).str.extractall("(.)")[0].unstack()
+    )
+    df[
+        [
+            "chl_plus_flag",
+            "PERID_flag",
+            "19_but_flag",
+            "FUCO_flag",
+            "19_Hex_flag",
+            "Prasino_flag",
+        ]
+    ] = (
+        df["qual_5"].astype(str).str.extractall("(.)")[0].unstack()
+    )
+    df[
+        [
+            "Viol_flag",
+            "Diadino_flag",
+            "Allox_flag",
+            "Lutein_flag",
+            "Zeaxan_flag",
+            "Chl_b_flag",
+        ]
+    ] = (
+        df["qual_6"].astype(str).str.extractall("(.)")[0].unstack()
+    )
+    df[
+        [
+            "alpha_carotene_flag",
+            "beta_carotene_flag",
+            "divinyl_chl_flag",
+            "monovinyl_chl_flag",
+            "HPLC_chla_flag",
+            "hetero_bact_flag",
+        ]
+    ] = (
+        df["qual_7"].astype(str).str.extractall("(.)")[0].unstack()
+    )
+    df[
+        [
+            "prochloro_bact_flag",
+            "synecho_bact_flag",
+            "eukaryotes_flag",
+            "ATP_flag",
+            "CH4_flag",
+            "N2O_flag",
+        ]
+    ] = (
+        df["qual_8"].astype(str).str.extractall("(.)")[0].unstack()
+    )
