@@ -2,90 +2,10 @@ import pandas as pd
 import glob
 import os
 import re
+
+from pandas.io.parsers import read_csv
 from cmapingest import vault_structure as vs
 
-
-"""CTD HEADER
-  CTDPRS  CTDTMP  CTDSAL  CTDOXY     PAR  LS6000  CHLPIG NITRATE  NUMBER    QUALT1
-    DBAR  ITS-90  PSS-78 uMOL/KG   Volts   Volts    uG/L uMOL/KG    OBS.         *
-
-    CMORE-BULA CTD data was collected using a SeaBird CTD 9-11 Plus at
-the maximum sampling rate of 24 samples per second (24 Hz). They were
-screened for errors and processed to 1-dbar averages. Each file
-contains one full profile (e.g., bu1s2c1dn.ctd contains the downcast CTD
-data from CMORE-BULA 1, station 2, cast 1).
-
-
-"""
-
-""" Bottle
-	Column  Format	Item
-	 1-  8    i3	Station Number
-	 9- 16    i3	Cast Number
-	17- 24    i3	Rossette Position
-	25- 32  f7.3	Latitude [Degrees North]
-	33- 40  f7.3	Longitude [Degrees West] 
-
-
-"""
-
-
-"""underway (uw)
-	Column  Format	Item
-	 1-  4	   i4	Year
-	 6-  8	   i3	Julian day [GMT]
-	10- 11	   i2	Hour [GMT]
-	13- 14	   i2	Minute [GMT]
-	16- 25  f10.6	Latitude [Degrees North]
-	27- 37 	f11.6	Longitude [Degrees West]
-        39- 46   f8.5	Salinity [PSS-78]
-        48- 55   f8.5	Temperature [ITS-90]
-        57- 64   f8.4	Chloropigment [ug/l]
-        67- 69     a3	Quality flags for salinity - chloropigment
-
-uwsample.txt:
-1.	Underway Sample #
-2.	Latitude [deg N]
-3.	Longitude [deg W]
-4.	UTC (Julian) day
-5.	GMT
-6.	Potential Density (Sigma) [kg/m3]
-        - calculated using the thermosalinograph data
-
-7.	Bottle Dissolved Oxygen [umol/l]
-var_n...
-
-
-Bottle:
-
-  STNNBR  CASTNO ROSETTE     LAT     LON  CTDPRS  CTDTMP  CTDSAL  CTDOXY  CTDCHL   THETA   SIGMA  OXYGEN     DIC ALKALIN  PHSPHT NO2+NO3  SILCAT     DOP     DON     DOC     TDP     TDN     LLN     LLP      PC      PN      PP     PSi  CHL A.   PHEO. CHLDA A    CHL+   PERID  19 BUT    FUCO  19 HEX PRASINO    VIOL DIADINO   ALLOX  LUTEIN  ZEAXAN   CHL B   A.CAR   B.CAR DV.CHLA MV.CHLA HPLCchl  H.BACT  P.BACT  S.BACT  E.BACT     ATP     CH4     N2O   QUALT1  QUALT2  QUALT3  QUALT4  QUALT5  QUALT6  QUALT7  QUALT8
-                POSITION  DEG(N)  DEG(W)    DBAR   DEG C  PSS-78 UMOL/KG    UG/L  ITS-90   KG/M3 UMOL/KG UMOL/KG  UEQ/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG UMOL/KG NMOL/KG NMOL/KG    UG/L    UG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    NG/L    #/ML    #/ML    #/ML    #/ML   NG/KG NMOL/KG NMOL/KG                                                                *
-                                                 ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* *******                                                                *
-
-       1       1      24 -16.001 170.007    13.4  29.086  35.207   197.8  0.1875  29.083 22.1942    -9.0    -9.0      -9   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00  -9.000  -9.000   -9.00   -9.00   -9.00  -9.000   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00   -9.00  -9.000  -9.000  -9.000  -9.000   -9.00   -9.00   -9.00  2222229 9999999  999999  955559  999999  999999  999995  555555
-
-    The files are self-explanatory; one column is written for each
-measured parameter.  Missing data are filled with -9. A five-line
-heading labels each column.  Variables having asterisks in their
-heading have a quality flag associated with them. These quality flags
-are concatenated as a quality word which is listed as the last eight
-variables in each row (either six or seven flags per variable).  The
-values each digit can assume and their meanings follows:
-
-Quality Indicators:
-
-	Flag  Meaning
-	 1    not quality controled
-	 2    good data
-	 3    suspect (i.e.  questionable) data
-	 4    bad data
-	 5    missing data
-	 9    variable not measured during this cast
-
-
-
-
-"""
 
 CMORE_BULA_path = vs.collected_data + "insitu/cruise/misc_cruise/KM0704_CMORE_BULA/"
 
@@ -467,3 +387,80 @@ def process_bottle():
     ] = (
         df["qual_8"].astype(str).str.extractall("(.)")[0].unstack()
     )
+
+    df.drop(
+        [
+            "qual_1",
+            "qual_2",
+            "qual_3",
+            "qual_4",
+            "qual_5",
+            "qual_6",
+            "qual_7",
+            "qual_8",
+        ],
+        axis=1,
+        inplace=True,
+    )
+    return df
+
+
+def process_wind():
+    wind_concat_list = []
+    wind_fpath = CMORE_BULA_path + "wind/"
+    wind_flist = glob.glob(wind_fpath + "*.gz*")
+    names = [
+        "year",
+        "jday",
+        "hr",
+        "min",
+        "sec",
+        "msec",
+        "code",
+        "port_wind_relative_speed",
+        "port_wind_relative_heading",
+        "SOG",
+        "COG",
+        "POSMV_HDG",
+        "wind_true_speed",
+        "wind_true_heading",
+        "starboard_wind_relative_speed",
+        "starboard_wind_relative_heading",
+    ]
+    for windf in wind_flist:
+        df = pd.read_csv(windf, names=names, delim_whitespace=True)
+        df["time"] = pd.to_datetime(
+            (df["year"]).astype(str)
+            + (df["jday"].astype(str))
+            + (df["hr"].astype(str))
+            + (df["min"].astype(str))
+            + (df["sec"].astype(str).str.zfill(2))
+            + (df["msec"].astype(str)),
+            format="%Y%j%H%M%S%f",
+        )
+        df.drop(["year", "jday", "hr", "min", "sec", "msec"], axis=1, inplace=True)
+        df = df[
+            [
+                "time",
+                "port_wind_relative_speed",
+                "port_wind_relative_heading",
+                "SOG",
+                "COG",
+                "POSMV_HDG",
+                "wind_true_speed",
+                "wind_true_heading",
+                "starboard_wind_relative_speed",
+                "starboard_wind_relative_heading",
+            ]
+        ]
+        wind_concat_list.append(df)
+
+    concat_df = pd.concat(wind_concat_list, axis=0, ignore_index=True)
+    return concat_df
+
+
+# CTD
+# Underway
+# Underway Sample
+# Bottle
+# Wind
