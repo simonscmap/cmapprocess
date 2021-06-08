@@ -39,6 +39,22 @@ def process_add_cols_ctd():
         )
         df["cast_direction"] = station_cast_meta[-2:]
         df["NUMBER"] = df["NUMBER"].astype(str).str.zfill(5)
+        df[
+            [
+                "CTDPRS_flag",
+                "CTDTMP_flag",
+                "CTDSAL_flag",
+                "CTDOXY_flag",
+                "PAR_flag",
+                "LS6000_flag",
+                "CHLPIG_flag",
+                "NITRATE_flag",
+            ]
+        ] = (
+            df["QUALT1"].astype(str).str.extractall("(.)")[0].unstack()
+        )
+        df.drop(["QUALT1"], axis=1, inplace=True)
+
         ctd_concat_list.append(df)
     concat_df = pd.concat(ctd_concat_list, axis=0, ignore_index=True)
     return concat_df
@@ -464,3 +480,6 @@ def process_wind():
 # Underway Sample
 # Bottle
 # Wind
+
+
+"""CTD NEEDS FLAG PROCESSING"""
