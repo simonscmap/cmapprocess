@@ -229,9 +229,6 @@ def process_underway_sample():
             "phspht",
             "NO2_NO3",
             "silcat",
-            "DOP",
-            "DON",
-            "DOC",
             "LLN",
             "LLP",
             "PC",
@@ -240,7 +237,6 @@ def process_underway_sample():
             "PSi",
             "chl_a",
             "pheo",
-            "chlda",
             "chl_plus",
             "PERID",
             "19_but",
@@ -263,8 +259,6 @@ def process_underway_sample():
             "synecho_bact",
             "eukaryotes",
             "ATP",
-            "CH4",
-            "N2O",
         ]
     ]
     return df
