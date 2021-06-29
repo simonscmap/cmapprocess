@@ -623,13 +623,7 @@ def add_missing_ST_columns(underway, CTD, bottle, wind):
             "prochloro_bact_flag",
             "synecho_bact_flag",
             "eukaryotes_flag",
-            "ATP_flag",
-            "salinity",
-            "temperature",
-            "chloropigment",
-            "salinity_flag",
-            "temperature_flag",
-            "chloropigment_flag",
+            "ATP_flag"
         ]
     ]
 
@@ -637,7 +631,7 @@ def add_missing_ST_columns(underway, CTD, bottle, wind):
     CTD_merge = pd.merge(
         CTD, bottle_ST.drop_duplicates("station"), how="left", on="station"
     )
-    CTD_merge["depth"] = CTD_merge["CTD_pres"]
+    CTD_merge["depth"] = CTD_merge["CTDPRS"]
     CTD_merge.rename(columns={"cast_x": "cast"}, inplace=True)
     CTD_ST = CTD_merge[
         [
@@ -716,7 +710,6 @@ bottle_ST, CTD_ST, wind_ST = add_missing_ST_columns(underway, CTD, bottle, wind)
 
 
 # export to staging
-
 export_to_staging(underway_sample, "KM0704_CMORE_BULA_Underway_Sample")
 export_to_staging(underway, "KM0704_CMORE_BULA_Underway")
 export_to_staging(bottle_ST, "KM0704_CMORE_BULA_Bottle")
