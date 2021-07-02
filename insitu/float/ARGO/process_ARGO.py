@@ -26,6 +26,7 @@ from cmapingest import data
 import pandas as pd
 import xarray as xr
 import os
+import numpy as np
 from tqdm import tqdm 
 import glob 
 
@@ -313,37 +314,7 @@ bgc_cols = [
 'UP_RADIANCE555_ADJUSTED_ERROR',
 'UP_RADIANCE555_ADJUSTED_QC',
 'UP_RADIANCE555_QC',
-'UP_RADIANCE555_dPRES',
-'N_CALIB',
-'N_LEVELS',
-'N_PARAM',
-'N_PROF',
-'DATA_TYPE',
-'FORMAT_VERSION',
-'HANDBOOK_VERSION',
-'REFERENCE_DATE_TIME',
-'DATE_CREATION',
-'DATE_UPDATE',
-'PROJECT_NAME',
-'PI_NAME',
-'STATION_PARAMETERS',
-'DIRECTION',
-'DATA_CENTRE',
-'PARAMETER_DATA_MODE',
-'PLATFORM_TYPE',
-'FLOAT_SERIAL_NO',
-'FIRMWARE_VERSION',
-'WMO_INST_TYPE',
-'JULD_QC',
-'JULD_LOCATION',
-'POSITION_QC',
-'POSITIONING_SYSTEM',
-'CONFIG_MISSION_NUMBER',
-'PARAMETER',
-'SCIENTIFIC_CALIB_COEFFICIENT',
-'SCIENTIFIC_CALIB_COMMENT',
-'SCIENTIFIC_CALIB_DATE',
-'SCIENTIFIC_CALIB_EQUATION']
+'UP_RADIANCE555_dPRES']
 
 
 def clean_bgc(fil):
@@ -353,29 +324,41 @@ def clean_bgc(fil):
     xdf = cmn.decode_xarray_bytes(xdf)
     #xdf to df, reset index
     df = xdf.to_dataframe().reset_index()
+    #drop ex metadata cols
+    df = df.drop(['N_CALIB','N_LEVELS','N_PARAM','N_PROF','DATA_TYPE','FORMAT_VERSION','HANDBOOK_VERSION','REFERENCE_DATE_TIME','DATE_CREATION','DATE_UPDATE','PROJECT_NAME','PI_NAME','STATION_PARAMETERS','DIRECTION','DATA_CENTRE','PARAMETER_DATA_MODE','PLATFORM_TYPE','FLOAT_SERIAL_NO','FIRMWARE_VERSION','WMO_INST_TYPE','JULD_LOCATION','POSITIONING_SYSTEM','CONFIG_MISSION_NUMBER','PARAMETER','SCIENTIFIC_CALIB_COEFFICIENT','SCIENTIFIC_CALIB_COMMENT','SCIENTIFIC_CALIB_DATE','SCIENTIFIC_CALIB_EQUATION'],axis=1)
     #adds depth as column
     df["depth"] =  df['PRES']
     #rename ST cols
     df = rename_bgc_cols(df) 
     #formats time col
-    df['time'] = pd.to_datetime(df['time'].astype(str),format="%Y-%m-%d %H:%M:%S")
-    """drops any invalid ST rows"""
+    df['time'] = pd.to_datetime(df['time'].astype(str),format="%Y-%m-%d %H:%M:%S").astype('datetime64[s]')
+    #drops duplicates created by netcdf multilevel index being flattened to pandas dataframe
+    df = df.drop_duplicates(subset=['time','lat','lon','depth'],keep='first')
+    #drops any invalid ST rows"""
     df = df.dropna(subset=['time', 'lat','lon','depth'])
     #sort ST cols
     df = data.sort_values(df, ['time','lat','lon','depth'])
     #adds climatology day,month,week,doy columns"""
     df = data.add_day_week_month_year_clim(df)
-    #strips any whitespace from col values"""
-    df = cmn.strip_whitespace_data(df)
     #adds any missing columns and reorders
     df = reorder_and_add_missing_cols(df)
+    #removes any inf vals
+    df = df.replace([np.inf, -np.inf], np.nan) 
+    #removes any nan string
+    df = df.replace('nan', np.nan) 
+    #strips any whitespace from col values"""
+    df = cmn.strip_whitespace_data(df)
+    #downcasts data 
+    df.loc[:, df.columns != 'time'] = df.loc[:, df.columns != 'time'].apply(pd.to_numeric, errors='ignore',downcast='signed')
     #ingests data
     DB.toSQLbcp_wrapper(df, 'tblArgoBGC_REP', "Rossby")
 
-for fil in tqdm(BGC_flist[0:2]):
-    clean_bgc(fil)
-
-
+missed = []
+for fil in tqdm(BGC_flist):
+    try:
+        clean_bgc(fil)
+    except:
+        missed.append(fil)
 
 
 
