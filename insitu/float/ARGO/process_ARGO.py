@@ -317,6 +317,10 @@ bgc_cols = [
 'UP_RADIANCE555_dPRES']
 
 
+def clean_Core(fil):
+
+    ['CYCLE_NUMBER', 'FLOAT_SERIAL_NO', 'JULD', 'JULD_QC', 'JULD_LOCATION', 'LATITUDE', 'LONGITUDE', 'POSITION_QC', 'PROFILE_PRES_QC', 'PROFILE_TEMP_QC', 'PROFILE_PSAL_QC', 'PRES', 'PRES_QC', 'PRES_ADJUSTED', 'PRES_ADJUSTED_QC', 'PRES_ADJUSTED_ERROR', 'TEMP', 'TEMP_QC', 'TEMP_ADJUSTED', 'TEMP_ADJUSTED_QC', 'TEMP_ADJUSTED_ERROR', 'PSAL', 'PSAL_QC', 'PSAL_ADJUSTED', 'PSAL_ADJUSTED_QC', 'PSAL_ADJUSTED_ERROR']
+
 def clean_bgc(fil):
     #open xarray
     xdf = xr.open_dataset(fil)
@@ -353,13 +357,16 @@ def clean_bgc(fil):
     #ingests data
     DB.toSQLbcp_wrapper(df, 'tblArgoBGC_REP', "Rossby")
 
-missed = []
-for fil in tqdm(BGC_flist):
-    try:
-        clean_bgc(fil)
-    except:
-        missed.append(fil)
+# missed = []
+# for fil in tqdm(BGC_flist):
+#     try:
+#         clean_bgc(fil)
+#     except:
+#         missed.append(fil)
 
 
 
 
+
+
+fil = Core_flist[1000]
