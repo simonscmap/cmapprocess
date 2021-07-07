@@ -1,23 +1,3 @@
-"""strategy:
-untar only _prof or _Sprof files into Core and BGC directories
-iterate through and process each
-
-
-
-"""
-
-
-"""
-multiprocessing ex:
-import multiprocessing as mp
-
-def do_the_work(filename):
-    pass
-
-master_list = [file1, file2, fil3, ...filen]
-with mp.Pool() as pool:
-    results = pool.map(do_the_work, master_list, chunksize=1)
-"""
 
 from cmapingest import DB
 from cmapingest import common as cmn
@@ -93,15 +73,19 @@ def replace_comm_delimiter(df):
             df[col] =df[col].astype(str).str.replace(',',';')
     return df
 
-def rename_bgc_cols(df):
+def rename_cols(df):
     rename_df = df.rename(columns={'JULD': 'time', 'LATITUDE': 'lat', 'LONGITUDE': 'lon', 'CYCLE_NUMBER': 'cycle','PLATFORM_NUMBER':'float_id'})
     return rename_df
 
-def reorder_and_add_missing_cols(df):
+def bgc_reorder_and_add_missing_cols(df):
     missing_cols = set(bgc_cols) ^ set(list(df))
     df = df.reindex(columns=[*df.columns.tolist(), *missing_cols]).reindex(columns=bgc_cols)
     return df
 
+def core_reorder_and_add_missing_cols(df):
+    missing_cols = set(core_cols) ^ set(list(df))
+    df = df.reindex(columns=[*df.columns.tolist(), *missing_cols]).reindex(columns=core_cols)
+    return df
 
 def get_BGC_flist():
     BGC_flist = glob.glob(argo_base_path + 'BGC/*.nc')
@@ -115,6 +99,42 @@ BGC_flist = get_BGC_flist()
 Core_flist = get_Core_flist()
 
 
+
+core_cols = [
+'time',
+'lat',
+'lon',
+'depth',
+'year',
+'month',
+'week',
+'dayofyear',
+'float_id',
+'cycle',
+'POSITION_QC',
+'DIRECTION',
+'DATA_MODE',
+'DATA_CENTRE',
+'JULD_QC',
+'JULD_LOCATION',
+'PROFILE_PRES_QC',
+'PROFILE_TEMP_QC',
+'PROFILE_PSAL_QC',
+'PRES',
+'PRES_QC',
+'PRES_ADJUSTED',
+'PRES_ADJUSTED_QC',
+'PRES_ADJUSTED_ERROR',
+'TEMP',
+'TEMP_QC',
+'TEMP_ADJUSTED',
+'TEMP_ADJUSTED_QC',
+'TEMP_ADJUSTED_ERROR',
+'PSAL',
+'PSAL_QC',
+'PSAL_ADJUSTED',
+'PSAL_ADJUSTED_QC',
+'PSAL_ADJUSTED_ERROR']
 
 bgc_cols = [
 'time',
@@ -322,21 +342,16 @@ def clean_Core(fil):
     xdf = xr.open_dataset(fil)
     #convert netcdf binary
     xdf = cmn.decode_xarray_bytes(xdf)
-    xdf = xdf[['CYCLE_NUMBER', 'FLOAT_SERIAL_NO', 'JULD', 'JULD_QC', 'JULD_LOCATION', 'LATITUDE', 'LONGITUDE', 'POSITION_QC', 'PROFILE_PRES_QC', 'PROFILE_TEMP_QC', 'PROFILE_PSAL_QC', 'PRES', 'PRES_QC', 'PRES_ADJUSTED', 'PRES_ADJUSTED_QC', 'PRES_ADJUSTED_ERROR', 'TEMP', 'TEMP_QC', 'TEMP_ADJUSTED', 'TEMP_ADJUSTED_QC', 'TEMP_ADJUSTED_ERROR', 'PSAL', 'PSAL_QC', 'PSAL_ADJUSTED', 'PSAL_ADJUSTED_QC', 'PSAL_ADJUSTED_ERROR']]
-    df =xdf.to_dataframe().reset_index()
-def clean_bgc(fil):
-    #open xarray
-    xdf = xr.open_dataset(fil)
-    #convert netcdf binary
-    xdf = cmn.decode_xarray_bytes(xdf)
+    #drop ex cols from xarray
+    xdf = xdf.drop(['DATA_TYPE','FORMAT_VERSION','HANDBOOK_VERSION','REFERENCE_DATE_TIME','DATE_CREATION','DATE_UPDATE','PROJECT_NAME','PI_NAME','STATION_PARAMETERS','DC_REFERENCE','DATA_STATE_INDICATOR','PLATFORM_TYPE','FLOAT_SERIAL_NO','FIRMWARE_VERSION','WMO_INST_TYPE','POSITIONING_SYSTEM','VERTICAL_SAMPLING_SCHEME','CONFIG_MISSION_NUMBER','PARAMETER','SCIENTIFIC_CALIB_EQUATION','SCIENTIFIC_CALIB_COEFFICIENT','SCIENTIFIC_CALIB_COMMENT','SCIENTIFIC_CALIB_DATE','HISTORY_INSTITUTION','HISTORY_STEP','HISTORY_SOFTWARE','HISTORY_SOFTWARE_RELEASE','HISTORY_REFERENCE','HISTORY_DATE','HISTORY_ACTION','HISTORY_PARAMETER','HISTORY_START_PRES','HISTORY_STOP_PRES','HISTORY_PREVIOUS_VALUE','HISTORY_QCTEST'],errors='ignore')
     #xdf to df, reset index
-    df = xdf.to_dataframe().reset_index()
+    df =xdf.to_dataframe().reset_index()
     #drop ex metadata cols
-    df = df.drop(['N_CALIB','N_LEVELS','N_PARAM','N_PROF','DATA_TYPE','FORMAT_VERSION','HANDBOOK_VERSION','REFERENCE_DATE_TIME','DATE_CREATION','DATE_UPDATE','PROJECT_NAME','PI_NAME','STATION_PARAMETERS','DIRECTION','DATA_CENTRE','PARAMETER_DATA_MODE','PLATFORM_TYPE','FLOAT_SERIAL_NO','FIRMWARE_VERSION','WMO_INST_TYPE','JULD_LOCATION','POSITIONING_SYSTEM','CONFIG_MISSION_NUMBER','PARAMETER','SCIENTIFIC_CALIB_COEFFICIENT','SCIENTIFIC_CALIB_COMMENT','SCIENTIFIC_CALIB_DATE','SCIENTIFIC_CALIB_EQUATION'],axis=1)
+    df = df.drop(['N_LEVELS','N_PROF'],axis=1)
     #adds depth as column
     df["depth"] =  df['PRES']
     #rename ST cols
-    df = rename_bgc_cols(df) 
+    df = rename_cols(df) 
     #formats time col
     df['time'] = pd.to_datetime(df['time'].astype(str),format="%Y-%m-%d %H:%M:%S").astype('datetime64[s]')
     #drops duplicates created by netcdf multilevel index being flattened to pandas dataframe
@@ -348,7 +363,44 @@ def clean_bgc(fil):
     #adds climatology day,month,week,doy columns"""
     df = data.add_day_week_month_year_clim(df)
     #adds any missing columns and reorders
-    df = reorder_and_add_missing_cols(df)
+    df = core_reorder_and_add_missing_cols(df)
+    #removes any inf vals
+    df = df.replace([np.inf, -np.inf], np.nan) 
+    #removes any nan string
+    df = df.replace('nan', np.nan) 
+    #strips any whitespace from col values"""
+    df = cmn.strip_whitespace_data(df)
+    #downcasts data 
+    df.loc[:, df.columns != 'time'] = df.loc[:, df.columns != 'time'].apply(pd.to_numeric, errors='ignore',downcast='signed')
+    #ingests data
+    DB.toSQLbcp_wrapper(df, 'tblArgoCore_REP', "Rossby")
+
+
+def clean_bgc(fil,dtype):
+    #open xarray
+    xdf = xr.open_dataset(fil)
+    #convert netcdf binary
+    xdf = cmn.decode_xarray_bytes(xdf)
+    #xdf to df, reset index
+    df = xdf.to_dataframe().reset_index()
+    #drop ex metadata cols
+    df = df.drop(['N_CALIB','N_LEVELS','N_PARAM','N_PROF','DATA_TYPE','FORMAT_VERSION','HANDBOOK_VERSION','REFERENCE_DATE_TIME','DATE_CREATION','DATE_UPDATE','PROJECT_NAME','PI_NAME','STATION_PARAMETERS','PARAMETER_DATA_MODE','PLATFORM_TYPE','FLOAT_SERIAL_NO','FIRMWARE_VERSION','WMO_INST_TYPE','JULD_LOCATION','POSITIONING_SYSTEM','CONFIG_MISSION_NUMBER','PARAMETER','SCIENTIFIC_CALIB_COEFFICIENT','SCIENTIFIC_CALIB_COMMENT','SCIENTIFIC_CALIB_DATE','SCIENTIFIC_CALIB_EQUATION'],axis=1, errors='ignore')
+    #adds depth as column
+    df["depth"] =  df['PRES']
+    #rename ST cols
+    df = rename_cols(df) 
+    #formats time col
+    df['time'] = pd.to_datetime(df['time'].astype(str),format="%Y-%m-%d %H:%M:%S").astype('datetime64[s]')
+    #drops duplicates created by netcdf multilevel index being flattened to pandas dataframe
+    df = df.drop_duplicates(subset=['time','lat','lon','depth'],keep='first')
+    #drops any invalid ST rows"""
+    df = df.dropna(subset=['time', 'lat','lon','depth'])
+    #sort ST cols
+    df = data.sort_values(df, ['time','lat','lon','depth'])
+    #adds climatology day,month,week,doy columns"""
+    df = data.add_day_week_month_year_clim(df)
+    #adds any missing columns and reorders
+    df = bgc_reorder_and_add_missing_cols(df)
     #removes any inf vals
     df = df.replace([np.inf, -np.inf], np.nan) 
     #removes any nan string
@@ -367,9 +419,13 @@ def clean_bgc(fil):
 #     except:
 #         missed.append(fil)
 
+# missed = []
+# for fil in tqdm(Core_flist[0:10]):
+#     try:
+#         clean_Core(fil)
+#     except:
+#         missed.append(fil)
 
 
 
-
-
-fil = Core_flist[1000]
+# fil = Core_flist[1]
